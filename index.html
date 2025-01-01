@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoice Calculator with Items</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f9f9f9;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .calculator-container {
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            max-width: 600px;
+            width: 100%;
+            overflow-y: auto;
+            max-height: 90vh;
+        }
+        h2 {
+            margin-bottom: 20px;
+            text-align: center;
+            color: #333;
+        }
+        label {
+            font-size: 14px;
+            margin-bottom: 5px;
+            display: block;
+            color: #555;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        textarea {
+            resize: vertical;
+            height: 80px;
+        }
+        button {
+            width: 100%;
+            background-color: #4CAF50;
+            color: white;
+            padding: 12px;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .result, .share-buttons {
+            margin-top: 20px;
+        }
+        .share-buttons a, .share-buttons button {
+            display: inline-block;
+            margin: 5px;
+            text-decoration: none;
+            color: white;
+            background-color: #25D366;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        .share-buttons button {
+            background-color: #007BFF;
+            border: none;
+            cursor: pointer;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: center;
+        }
+        th {
+            background-color: #f4f4f4;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="calculator-container">
+        <h2>Invoice Calculator with Items</h2>
+        <label for="totalCost">Total Cost ($)</label>
+        <input type="number" id="totalCost" placeholder="Enter total cost">
+
+        <label for="numPeople">Number of Individuals</label>
+        <input type="number" id="numPeople" placeholder="Enter number of individuals">
+
+        <button onclick="addNameAndPurchaseFields()">Next</button>
+
+        <div id="namesSection"></div>
+        <div id="resultOutput" class="result"></div>
+        <div id="invoiceTable"></div>
+        <div class="share-buttons" id="shareButtons"></div>
+    </div>
+
+    <script>
+        let shareResults = "";
+
+        function addNameAndPurchaseFields() {
+            const numPeople = parseInt(document.getElementById("numPeople").value);
+
+            if (isNaN(numPeople) || numPeople <= 0) {
+                document.getElementById("resultOutput").innerText = "Please enter a valid number of individuals.";
+                return;
+            }
+
+            const namesSection = document.getElementById("namesSection");
+            namesSection.innerHTML = "<h3>Enter Names, Items, and Purchase Amounts:</h3>";
+
+            for (let i = 0; i < numPeople; i++) {
+                namesSection.innerHTML += `
+                    <label for="person${i}">Person ${i + 1} Name:</label>
+                    <input type="text" id="person${i}" placeholder="Enter name">
+
+                    <label for="items${i}">Items Purchased (comma-separated):</label>
+                    <textarea id="items${i}" placeholder="e.g., Apples, Bread, Milk"></textarea>
+
+                    <label for="purchase${i}">Person ${i + 1} Purchase Amount ($):</label>
+                    <input type="number" id="purchase${i}" placeholder="Enter purchase amount" step="0.01">
+                `;
+            }
+            namesSection.innerHTML += `<button onclick="calculateInvoices()">Calculate</button>`;
+        }
+
+        function calculateInvoices() {
+            const totalCost = parseFloat(document.getElementById("totalCost").value);
+            const numPeople = parseInt(document.getElementById("numPeople").value);
+
+            let purchases = [];
+            let totalSpent = 0;
+
+            for (let i = 0; i < numPeople; i++) {
+                const name = document.getElementById(`person${i}`).value || `Person ${i + 1}`;
+                const items = document.getElementById(`items${i}`).value || "No items listed";
+                const purchase = parseFloat(document.getElementById(`purchase${i}`).value) || 0;
+                purchases.push({ name, items, purchase });
+                totalSpent += purchase;
+            }
+
+            if (totalSpent < totalCost) {
+                document.getElementById("resultOutput").innerText = `The total spent ($${totalSpent}) is less than the total cost ($${totalCost}).`;
+                return;
+            }
+
+            const averageCost = totalCost / numPeople;
+            const balances = purchases.map(person => ({
+                name: person.name,
+                items: person.items,
+                purchase: person.purchase,
+                balance: (person.purchase - averageCost).toFixed(2),
+            }));
+
+            displayInvoiceTable(balances);
+            calculateWhoOwesWhom(balances, totalCost);
+        }
+
+        function displayInvoiceTable(balances) {
+            let tableHTML = `
+                <table>
+                    <tr>
+                        <th>Name</th>
+                        <th>Items Purchased</th>
+                        <th>Purchase ($)</th>
+                        <th>Balance ($)</th>
+                    </tr>
+            `;
+
+            balances.forEach(person => {
+                tableHTML += `
+                    <tr>
+                        <td>${person.name}</td>
+                        <td>${person.items}</td>
+                        <td>${person.purchase.toFixed(2)}</td>
+                        <td>${person.balance}</td>
+                    </tr>
+                `;
+            });
+
+            tableHTML += `</table>`;
+            document.getElementById("invoiceTable").innerHTML = tableHTML;
+        }
+
+        function calculateWhoOwesWhom(balances, totalCost) {
+            const debtors = balances.filter(person => person.balance < 0);
+            const creditors = balances.filter(person => person.balance > 0);
+
+            let resultOutput = `<h3>Who Owes Whom</h3>`;
+            shareResults = `Total Cost: $${totalCost}\n\nInvoice Summary:\n`;
+
+            debtors.forEach(debtor => {
+                creditors.forEach(creditor => {
+                    const debt = Math.min(Math.abs(debtor.balance), creditor.balance).toFixed(2);
+
+                    if (debt > 0) {
+                        resultOutput += `<p>${debtor.name} owes ${creditor.name} $${debt}</p>`;
+                        shareResults += `${debtor.name} owes ${creditor.name} $${debt}\n`;
+
+                        debtor.balance = (parseFloat(debtor.balance) + parseFloat(debt)).toFixed(2);
+                        creditor.balance = (parseFloat(creditor.balance) - parseFloat(debt)).toFixed(2);
+                    }
+                });
+            });
+
+            document.getElementById("resultOutput").innerHTML = resultOutput;
+
+            addShareButtons();
+        }
+
+        function addShareButtons() {
+            const shareButtons = document.getElementById("shareButtons");
+            shareButtons.innerHTML = `
+                <a href="https://wa.me/?text=${encodeURIComponent(shareResults)}" target="_blank">Share on WhatsApp</a>
+                <a href="mailto:?subject=Purchase Invoice Results&body=${encodeURIComponent(shareResults)}" target="_blank">Share via Email</a>
+                <button onclick="downloadTxt()">Download as TXT</button>
+            `;
+        }
+
+        function downloadTxt() {
+            const blob = new Blob([shareResults], { type: "text/plain" });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = "Invoice_Results.txt";
+            link.click();
+        }
+    </script>
+</body>
+</html>
